@@ -14,6 +14,8 @@ typedef struct {
   char *questionLine1;
   char *questionLine2;
   char *questionLine3;
+  char *questionLine4;
+  char *questionLine5;
   char *answer0;
   char *answer1;
   char *answer2;
@@ -21,11 +23,40 @@ typedef struct {
   enum {AnswerA = 0, AnswerB = 1, AnswerC = 2, AnswerD = 3} answer;
 } question;
 
+question q1 = {
+  "What is the ",
+  "capital of the",
+  "United States?",
+  "",
+  "",
+  "Washington, D.C.",
+  "New York",
+  "Los Angeles",
+  "Chicago",
+  AnswerA
+};
+
+question q2 = {
+  "What is the ",
+  "answer to life,",
+  "the universe,",
+  "and everything?",
+  "",
+  "43",
+  "42",
+  "44",
+  "45",
+  AnswerB
+};
+
 int redrawScreen = 1;
 int switches = 0;
 char current_position = 0;
-int round = 0;
+int roundNum = 0;
 int score = 0;
+static int time = 10;
+int current_question_index = 0;
+question *current_question = &q1;
 
 static char 
 switch_update_interrupt_sense()
@@ -68,7 +99,7 @@ switch_interrupt_handler()
 void draw_round()
 {
   char round_string[10];
-  sprintf(round_string, "Round: %02d", round);
+  sprintf(round_string, "Round: %02d", roundNum);
   drawString5x7(5, 5, round_string, FG_COLOR, BG_COLOR);
 }
 
@@ -78,24 +109,32 @@ void draw_score()
   sprintf(score_string, "Score: %02d", score);
   drawString5x7(70, 5, score_string, FG_COLOR, BG_COLOR);
 }
+void draw_timer()
+{
+  char score_string[10];
+  sprintf(score_string, "Time: %02d", time);
+  drawString5x7(70, 15, score_string, FG_COLOR, BG_COLOR);
+}
 
 void draw_question(question question)
 {
-  drawString5x7(5, 20, question.questionLine1, FG_COLOR, BG_COLOR);
-  drawString5x7(5, 30, question.questionLine2, FG_COLOR, BG_COLOR);
-  drawString5x7(5, 40, question.questionLine3, FG_COLOR, BG_COLOR);
-  drawString5x7(20, 60, question.answer0, FG_COLOR, BG_COLOR);
-  drawString5x7(20, 70, question.answer1, FG_COLOR, BG_COLOR);
-  drawString5x7(20, 80, question.answer2, FG_COLOR, BG_COLOR);
-  drawString5x7(20, 90, question.answer3, FG_COLOR, BG_COLOR);
+  drawString5x7(5, 40, question.questionLine1, FG_COLOR, BG_COLOR);
+  drawString5x7(5, 50, question.questionLine2, FG_COLOR, BG_COLOR);
+  drawString5x7(5, 60, question.questionLine3, FG_COLOR, BG_COLOR);
+  drawString5x7(5, 70, question.questionLine4, FG_COLOR, BG_COLOR);
+  drawString5x7(5, 80, question.questionLine5, FG_COLOR, BG_COLOR);
+  drawString5x7(20, 100, question.answer0, FG_COLOR, BG_COLOR);
+  drawString5x7(20, 110, question.answer1, FG_COLOR, BG_COLOR);
+  drawString5x7(20, 120, question.answer2, FG_COLOR, BG_COLOR);
+  drawString5x7(20, 130, question.answer3, FG_COLOR, BG_COLOR);
 }
 
 void draw_answer_key()
 {
-  drawString5x7(5, 60, "A:", COLOR_GREEN, BG_COLOR);
-  drawString5x7(5, 70, "B:", COLOR_BLUE, BG_COLOR);
-  drawString5x7(5, 80, "C:", COLOR_PURPLE, BG_COLOR);
-  drawString5x7(5, 90, "D:", COLOR_RED, BG_COLOR);
+  drawString5x7(5, 100, "A:", COLOR_GREEN, BG_COLOR);
+  drawString5x7(5, 110, "B:", COLOR_BLUE, BG_COLOR);
+  drawString5x7(5, 120, "C:", COLOR_PURPLE, BG_COLOR);
+  drawString5x7(5, 130, "D:", COLOR_RED, BG_COLOR);
 }
 
 void draw_buttons()
@@ -114,16 +153,23 @@ void draw_answer_page(question question, char answer)
   drawString5x7(5, 110, answer_string, FG_COLOR, BG_COLOR);
 }
 
-void score_answer(question question, char answer)
-{
-  if (question.answer == answer) {
-    score++;
+void next_question(){
+  switch(current_question_index){
+  case 0:
+    current_question_index++;
+    current_question = &q2;
+    break;
+  case 1:
+    current_question_index = 0;
+    current_question = &q1;
+    break;
+  default:
+    current_question_index = 0;
+    current_question = &q1;
+    break;
   }
-}
 
-void update_shape()
-{
-  drawString5x7(20, 20, "Hello, world", FG_COLOR, BG_COLOR);
+  draw_question(*current_question);
 }
 
 void wdt_c_handler()
@@ -136,6 +182,8 @@ void wdt_c_handler()
   }
   if (sec1Count++ >= 250) {		/* 1/sec */
     sec1Count = 0;
+    //timer--;
+    //draw_timer();
     redrawScreen = 1;
   }
 }
@@ -154,25 +202,16 @@ void main()
 
   clearScreen(BG_COLOR);
 
-  question q1 = {
-    "What is the ",
-    "capital of the",
-    "United States?",
-    "Washington, D.C.",
-    "New York",
-    "Los Angeles",
-    "Chicago",
-    AnswerA
-  };
-
+  draw_score();
+  draw_round();
+  draw_timer();
+  draw_question(*current_question);
+  draw_answer_key();
+  draw_buttons();
+  
   while (1) {           /* forever */
     if (redrawScreen) {
       redrawScreen = 0;
-      draw_score();
-      draw_round();
-      draw_question(q1);
-      draw_answer_key();
-      draw_buttons();
     }
 
     P1OUT &= ~LED;  /* led off */
@@ -184,8 +223,33 @@ void main()
 /* Switch on S2 */
 void
 __interrupt_vec(PORT2_VECTOR) Port_2(){
-  if (P2IFG & SWITCHES) {	      /* did a button cause this interrupt? */
-    P2IFG &= ~SWITCHES;		      /* clear pending sw interrupts */
-    switch_interrupt_handler();	/* single handler for all switches */
+  int answer = 0;
+  if (P2IFG & BIT0) {
+    P2IFG &= ~BIT0;
+    answer = 0;
   }
+  if (P2IFG & BIT1) {
+    P2IFG &= ~BIT1;
+    answer = 1;
+  }
+  if (P2IFG & BIT2) {
+    P2IFG &= ~BIT2;
+    answer = 2;
+  }
+  if (P2IFG & BIT3) {
+    P2IFG &= ~BIT3;
+    answer = 3;
+  }
+  if (answer == (*current_question).answer) {
+    roundNum++;
+    score++;
+    clearScreen(BG_COLOR);
+    draw_score();
+    draw_round();
+    draw_timer();
+    next_question();
+    draw_answer_key();
+    draw_buttons();
+  }
+
 }
