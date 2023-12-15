@@ -56,7 +56,6 @@ int switches = 0;
 char current_position = 0;
 int roundNum = 0;
 int score = 0;
-static int time = 10;
 int current_question_index = 0;
 question *current_question = &q1;
 
@@ -110,12 +109,6 @@ void draw_score()
   char score_string[10];
   sprintf(score_string, "Score: %02d", score);
   drawString5x7(70, 5, score_string, FG_COLOR, BG_COLOR);
-}
-void draw_timer()
-{
-  char score_string[10];
-  sprintf(score_string, "Time: %02d", time);
-  drawString5x7(70, 15, score_string, FG_COLOR, BG_COLOR);
 }
 
 void draw_question(question question)
@@ -177,6 +170,7 @@ void next_question(){
 
 void wdt_c_handler()
 {
+  static int sec1Count = 0;
   if (play == 1){
     CCR0 = freq; 
     CCR1 = freq >> 1;
@@ -187,13 +181,6 @@ void wdt_c_handler()
       CCR0 = 0; 
       CCR1 = 0 >> 1;
     }
-  }
-  static int sec1Count = 0;
-  if (sec1Count++ >= 250) {		/* 1/sec */
-    sec1Count = 0;
-    //timer--;
-    //draw_timer();
-    redrawScreen = 1;
   }
 }
 
@@ -219,7 +206,6 @@ void main()
 
   draw_score();
   draw_round();
-  draw_timer();
   draw_question(*current_question);
   draw_answer_key();
   draw_buttons();
@@ -261,7 +247,6 @@ __interrupt_vec(PORT2_VECTOR) Port_2(){
     clearScreen(BG_COLOR);
     draw_score();
     draw_round();
-    draw_timer();
     next_question();
     draw_answer_key();
     draw_buttons();
