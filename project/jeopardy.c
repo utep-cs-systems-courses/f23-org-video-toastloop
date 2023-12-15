@@ -50,6 +50,8 @@ question q2 = {
 };
 
 int redrawScreen = 1;
+char play = 0;
+static short freq = 0x1000;
 int switches = 0;
 char current_position = 0;
 int roundNum = 0;
@@ -118,6 +120,7 @@ void draw_timer()
 
 void draw_question(question question)
 {
+  drawRectOutline(0, 30, 125, 60, FG_COLOR);
   drawString5x7(5, 40, question.questionLine1, FG_COLOR, BG_COLOR);
   drawString5x7(5, 50, question.questionLine2, FG_COLOR, BG_COLOR);
   drawString5x7(5, 60, question.questionLine3, FG_COLOR, BG_COLOR);
@@ -174,12 +177,18 @@ void next_question(){
 
 void wdt_c_handler()
 {
-  static int sec2Count = 0;
-  static int sec1Count = 0;
-  if (sec2Count++ >= 125) {		/* 2/sec */
-    sec2Count = 0;
-    redrawScreen = 1;
+  if (play == 1){
+    CCR0 = freq; 
+    CCR1 = freq >> 1;
+    static int sec2Count = 0;
+    if(++sec2Count == 125) {
+      play = 0;
+      sec2Count = 0;
+      CCR0 = 0; 
+      CCR1 = 0 >> 1;
+    }
   }
+  static int sec1Count = 0;
   if (sec1Count++ >= 250) {		/* 1/sec */
     sec1Count = 0;
     //timer--;
@@ -193,7 +202,13 @@ void main()
 
   P1DIR |= LED;     /**< Green led on when CPU on */
   P1OUT |= LED;
+
+  P2DIR |= BIT6;
+  P2SEL &= (BIT6 | ~BIT7);
+  P2SEL2 &= ~(BIT6 | BIT7);
+
   configureClocks();
+  timerAUpmode();
   lcd_init();
   switch_init();
 
@@ -250,6 +265,9 @@ __interrupt_vec(PORT2_VECTOR) Port_2(){
     next_question();
     draw_answer_key();
     draw_buttons();
+  } else {
+    freq = 0x1000;
+    play = 1;
   }
 
 }
